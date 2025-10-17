@@ -1,0 +1,64 @@
+image: "golang:1.24"
+
+.go_setup: &go_setup
+  variables: &go_variables
+    DUMMY: "add your variables here"
+  cache:
+    paths:
+      - .go/pkg/mod/
+  before_script:
+    - mkdir -p .go
+    - go mod tidy -v
+
+.only_production: &only_production
+  refs:
+    - master
+    - main
+
+stages:
+  - test
+
+unit-test:
+  <<: *go_setup
+  stage: test
+  variables:
+    <<: *go_variables
+    GOFLAGS: "-mod=readonly"
+  script:
+    - go install github.com/boumenot/gocover-cobertura
+    - make test
+    - gocover-cobertura < cover.out > cover.xml
+  coverage: '/total:\s*\(statements\)\s*\d+.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cover.xml
+
+lint:
+  <<: *go_setup
+  stage: test
+  variables:
+    <<: *go_variables
+    GOFLAGS: "-mod=readonly"
+  script:
+    - make lint
+
+benchmark:
+  <<: *go_setup
+  stage: test
+  variables:
+    <<: *go_variables
+    GOFLAGS: "-mod=readonly"
+  script:
+    - make bench
+
+vet:
+  <<: *go_setup
+  stage: test
+  variables:
+    <<: *go_variables
+    GOFLAGS: "-mod=readonly"
+  script:
+    - go vet ./...
+  allow_failure: true

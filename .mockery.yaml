@@ -1,0 +1,10 @@
+with-expecter: true
+all: true
+dir: misc/mocks/{{ replaceAll .InterfaceDirRelative "service/" ""}}
+outpkg: "mocks"
+filename: "{{.InterfaceName}}.go"
+mockname: "{{.InterfaceName}}"
+packages:
+  github.com/ankurs/myapp/service:
+    config:
+      recursive: true
