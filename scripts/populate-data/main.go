@@ -124,8 +124,8 @@ func main() {
 	// Create Incidents
 	fmt.Println("⚠️  Creating sample incidents (400+ over last 90 days)...")
 
-	// Seed random number generator
-	rand.Seed(time.Now().UnixNano())
+	// Create random number generator
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Incident types with their probabilities
 	incidentTypes := []string{"mechanical", "signal", "power", "mechanical", "signal", "mechanical", "weather", "other"}
@@ -153,21 +153,21 @@ func main() {
 	// Generate 420 incidents
 	for i := 0; i < 420; i++ {
 		// Random day in the last 90 days
-		daysAgo := rand.Intn(90)
+		daysAgo := rng.Intn(90)
 
 		// Random hour (weighted toward peak hours 7-9am and 5-8pm)
-		hour := rand.Intn(24)
-		if rand.Float32() < 0.4 { // 40% during peak hours
-			if rand.Float32() < 0.5 {
-				hour = 7 + rand.Intn(3) // 7-9am
+		hour := rng.Intn(24)
+		if rng.Float32() < 0.4 { // 40% during peak hours
+			if rng.Float32() < 0.5 {
+				hour = 7 + rng.Intn(3) // 7-9am
 			} else {
-				hour = 17 + rand.Intn(4) // 5-8pm
+				hour = 17 + rng.Intn(4) // 5-8pm
 			}
 		}
 
 		// Random minute and second
-		minute := rand.Intn(60)
-		second := rand.Intn(60)
+		minute := rng.Intn(60)
+		second := rng.Intn(60)
 
 		// Calculate timestamp
 		timestamp := time.Now().AddDate(0, 0, -daysAgo).
@@ -178,20 +178,20 @@ func main() {
 
 		// Random duration (5-120 minutes, weighted toward shorter durations)
 		var duration int
-		r := rand.Float32()
+		r := rng.Float32()
 		if r < 0.5 {
-			duration = 5 + rand.Intn(16) // 5-20 mins (50%)
+			duration = 5 + rng.Intn(16) // 5-20 mins (50%)
 		} else if r < 0.8 {
-			duration = 20 + rand.Intn(31) // 20-50 mins (30%)
+			duration = 20 + rng.Intn(31) // 20-50 mins (30%)
 		} else {
-			duration = 50 + rand.Intn(71) // 50-120 mins (20%)
+			duration = 50 + rng.Intn(71) // 50-120 mins (20%)
 		}
 
 		// Random incident type
-		incidentType := incidentTypes[rand.Intn(len(incidentTypes))]
+		incidentType := incidentTypes[rng.Intn(len(incidentTypes))]
 
 		// Random line-station pair
-		pair := lineStationPairs[rand.Intn(len(lineStationPairs))]
+		pair := lineStationPairs[rng.Intn(len(lineStationPairs))]
 
 		incidentCount++
 		err := createIncident(pair.Line, pair.Station, timestamp, duration, incidentType)

@@ -30,7 +30,7 @@ func (r *Repository) GetOrCreateLine(ctx context.Context, name string) (*Line, e
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDatabaseError, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var line Line
 	err = tx.GetContext(ctx, &line, "SELECT id, name, created_at FROM lines WHERE name = $1", name)
@@ -60,7 +60,7 @@ func (r *Repository) GetOrCreateStation(ctx context.Context, name string, lineID
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDatabaseError, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var station Station
 	err = tx.GetContext(ctx, &station,
