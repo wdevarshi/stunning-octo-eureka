@@ -3,10 +3,8 @@ module github.com/bluesg/transport-analytics
 go 1.24
 
 require (
-	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/bufbuild/buf v1.42.0
 	github.com/go-coldbrew/core v0.1.25
-	github.com/go-coldbrew/errors v0.2.1
 	github.com/go-coldbrew/log v0.2.4
 	github.com/golangci/golangci-lint v1.61.0
 	github.com/google/uuid v1.6.0
@@ -109,12 +107,12 @@ require (
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/ghostiam/protogetter v0.3.6 // indirect
 	github.com/go-chi/chi/v5 v5.1.0 // indirect
+	github.com/go-coldbrew/errors v0.2.1 // indirect
 	github.com/go-coldbrew/hystrixprometheus v0.1.1 // indirect
 	github.com/go-coldbrew/interceptors v0.1.7 // indirect
 	github.com/go-coldbrew/options v0.2.3 // indirect
 	github.com/go-coldbrew/tracing v0.0.6 // indirect
 	github.com/go-critic/go-critic v0.11.4 // indirect
-	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
