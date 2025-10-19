@@ -1,4 +1,4 @@
-module github.com/ankurs/myapp
+module github.com/bluesg/transport-analytics
 
 go 1.24
 
@@ -7,10 +7,13 @@ require (
 	github.com/bufbuild/buf v1.42.0
 	github.com/go-coldbrew/core v0.1.25
 	github.com/go-coldbrew/errors v0.2.1
-	github.com/go-coldbrew/log v0.2.3
+	github.com/go-coldbrew/log v0.2.4
 	github.com/golangci/golangci-lint v1.61.0
+	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/lib/pq v1.10.9
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/stretchr/testify v1.10.0
 	github.com/vektra/mockery/v2 v2.46.0
@@ -143,7 +146,6 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-containerregistry v0.20.2 // indirect
 	github.com/google/pprof v0.0.0-20240910150728-a0b0bb1d4134 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gordonklaus/ineffassign v0.1.0 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
@@ -304,7 +306,7 @@ require (
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/tools v0.25.0 // indirect

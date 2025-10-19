@@ -1,0 +1,8 @@
+GET http://localhost:9091/health
+GET http://localhost:9091/ready
+GET http://localhost:9091/lines
+GET http://localhost:9091/stations
+GET http://localhost:9091/analytics/top_breakdowns?scope=line&limit=5
+GET http://localhost:9091/analytics/top_breakdowns?scope=station&limit=5
+GET http://localhost:9091/analytics/mean_time_between_failures
+GET http://localhost:9091/analytics/recent_disruptions?limit=10

@@ -1,0 +1,14 @@
+POST http://localhost:9091/lines
+Content-Type: application/json
+
+{"name": "North-South Line"}
+
+POST http://localhost:9091/lines
+Content-Type: application/json
+
+{"name": "East-West Line"}
+
+POST http://localhost:9091/lines
+Content-Type: application/json
+
+{"name": "Circle Line"}

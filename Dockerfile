@@ -1,17 +1,19 @@
 # Build Stage
 FROM golang:1.24 AS build-stage
 
-LABEL app="build-myapp"
-LABEL REPO="https://github.com/ankurs/myapp"
+LABEL app="transport-reliability-analytics"
+LABEL description="LTA Transport Reliability Analytics System"
 
-ENV PROJPATH=/go/src/github.com/ankurs/myapp
+ENV PROJPATH=/go/src/app
 
 # Because of https://github.com/docker/docker/issues/14914
 ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
-ADD . /go/src/github.com/ankurs/myapp
-WORKDIR /go/src/github.com/ankurs/myapp
+WORKDIR /go/src/app
+COPY go.mod go.sum ./
+RUN go mod download
 
+COPY . .
 RUN make build-alpine
 
 # Final Stage
@@ -19,23 +21,28 @@ FROM alpine:latest
 
 ARG GIT_COMMIT
 ARG VERSION
-LABEL REPO="https://github.com/ankurs/myapp"
+LABEL app="transport-reliability-analytics"
+LABEL description="LTA Transport Reliability Analytics System"
 LABEL GIT_COMMIT=$GIT_COMMIT
 LABEL VERSION=$VERSION
 
-# add tz data
-RUN apk add --no-cache tzdata
+# Add timezone data and wget for health checks
+RUN apk add --no-cache tzdata wget ca-certificates
 
 # Because of https://github.com/docker/docker/issues/14914
-ENV PATH=$PATH:/opt/myapp/bin
+ENV PATH=$PATH:/opt/transport-analytics/bin
 
-WORKDIR /opt/myapp/bin
+WORKDIR /opt/transport-analytics/bin
 
-COPY --from=build-stage /go/src/github.com/ankurs/myapp/bin/myapp /opt/myapp/bin/
-RUN chmod +x /opt/myapp/bin/myapp
+COPY --from=build-stage /go/src/app/bin/myapp /opt/transport-analytics/bin/transport-analytics
+RUN chmod +x /opt/transport-analytics/bin/transport-analytics
 
-# Create appuser
-RUN adduser -D -g '' myapp
-USER myapp
+# Create non-root user for security
+RUN adduser -D -g '' transport && \
+    chown -R transport:transport /opt/transport-analytics
 
-ENTRYPOINT ["/opt/myapp/bin/myapp"]
+USER transport
+
+EXPOSE 9090 9091
+
+ENTRYPOINT ["/opt/transport-analytics/bin/transport-analytics"]

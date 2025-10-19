@@ -1,0 +1,6 @@
+# Stress test results
+results/
+
+# Temporary files
+*.tmp
+*.log

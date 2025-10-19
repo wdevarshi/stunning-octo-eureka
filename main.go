@@ -5,108 +5,156 @@ import (
 	"mime"
 	"net/http"
 
-	"github.com/ankurs/myapp/config"
-	myapp "github.com/ankurs/myapp/proto"
-	"github.com/ankurs/myapp/service"
-	"github.com/ankurs/myapp/version"
+	"github.com/bluesg/transport-analytics/backend"
+	"github.com/bluesg/transport-analytics/config"
+	myapp "github.com/bluesg/transport-analytics/proto"
+	"github.com/bluesg/transport-analytics/version"
 	"github.com/go-coldbrew/core"
 	"github.com/go-coldbrew/log"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/protobuf/proto"
 
-	openapi "github.com/ankurs/myapp/third_party/OpenAPI"
+	openapi "github.com/bluesg/transport-analytics/third_party/OpenAPI"
 )
 
-// cbSvc is the service implementation of ColdBrew service
 type cbSvc struct {
-	stopper core.CBStopper
+	stopper      core.CBStopper
+	db           *sqlx.DB
+	transportSvc *backend.Service
 }
 
-// FailCheck allows graceful termination of the service
-// This is called by the health check endpoint to determine if the service is ready to serve requests or not
 func (s *cbSvc) FailCheck(fail bool) {
-	if fail {
-		service.SetNotReady()
-	} else {
-		service.SetReady()
+}
+
+func (s *cbSvc) Stop() {
+	if s.db != nil {
+		s.db.Close()
+	}
+	if s.stopper != nil {
+		s.stopper.Stop()
 	}
 }
 
-// Stop is called when the service is being stopped by the ColdBrew framework
-// This is a good place to clean up resources and gracefully shutdown the service if needed before the process exits completely
-func (s *cbSvc) Stop() {
-	s.stopper.Stop()
-
-	// Add your additional cleanup code here if needed
-}
-
-// InitHTTP is called by the ColdBrew framework to initialize the HTTP server and register the HTTP handlers
-// This is a good place to register your HTTP handlers if you have any custom handlers that you want to register with the HTTP server
-// If you are using the grpc-gateway, you can use the RegisterMySvcHandlerFromEndpoint function to register the HTTP handlers
-// The endpoint is the address of the gRPC server
-// The opts are the grpc.DialOptions that are used to connect to the gRPC server
 func (s *cbSvc) InitHTTP(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
-	return myapp.RegisterMySvcHandlerFromEndpoint(ctx, mux, endpoint, opts)
-}
-
-// InitGRPC is called by the ColdBrew framework to initialize the gRPC server and register the gRPC handlers
-// This is a good place to register your gRPC handlers if you have any custom handlers that you want to register with the gRPC server
-// If you are using the grpc-gateway, you can use the RegisterMySvcHandlerFromEndpoint function to register the HTTP handlers
-func (s *cbSvc) InitGRPC(ctx context.Context, server *grpc.Server) error {
-	// Create the service implementation
-	impl, err := service.New(config.Get())
+	err := myapp.RegisterTransportAnalyticsHandlerFromEndpoint(ctx, mux, endpoint, opts)
 	if err != nil {
 		return err
 	}
-	// Register the service implementation with the gRPC server
-	myapp.RegisterMySvcServer(server, impl)
-
-	// Register the health check service implementation with the gRPC server so that the gRPC health check endpoint is available
-	healthgrpc.RegisterHealthServer(server, impl)
-
-	// register stopper
-	s.stopper = impl
+	// Wrap mux to handle OPTIONS requests
 	return nil
 }
 
-// getOpenAPIHandler returns the OpenAPI UI handler that is used by the ColdBrew framework to serve the OpenAPI UI
+func (s *cbSvc) HTTPMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers for ALL requests
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+			// Handle CORS preflight requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (s *cbSvc) GRPCGatewayMuxOptions() []runtime.ServeMuxOption {
+	return []runtime.ServeMuxOption{
+		runtime.WithForwardResponseOption(addCORSHeaders),
+		runtime.WithErrorHandler(func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
+			// Add CORS headers even for errors
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
+		}),
+		runtime.WithMetadata(func(ctx context.Context, req *http.Request) metadata.MD {
+			md := metadata.MD{}
+			return md
+		}),
+	}
+}
+
+func addCORSHeaders(ctx context.Context, w http.ResponseWriter, _ proto.Message) error {
+	// Set CORS headers for all successful responses
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	return nil
+}
+
+func (s *cbSvc) InitGRPC(ctx context.Context, server *grpc.Server) error {
+	cfg := config.Get()
+
+	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	if err != nil {
+		log.Error(ctx, "Failed to connect to database", "error", err)
+		return err
+	}
+	s.db = db
+
+	s.db.SetMaxOpenConns(25)
+	s.db.SetMaxIdleConns(5)
+
+	log.Info(ctx, "Database connection established")
+
+	repo := backend.NewRepository(db)
+	s.transportSvc = backend.NewService(repo)
+
+	myapp.RegisterTransportAnalyticsServer(server, s.transportSvc)
+
+	healthgrpc.RegisterHealthServer(server, &healthService{})
+
+	log.Info(ctx, "Transport analytics assessment registered")
+
+	return nil
+}
+
+type healthService struct {
+	healthgrpc.UnimplementedHealthServer
+}
+
+func (h *healthService) Check(ctx context.Context, req *healthgrpc.HealthCheckRequest) (*healthgrpc.HealthCheckResponse, error) {
+	return &healthgrpc.HealthCheckResponse{
+		Status: healthgrpc.HealthCheckResponse_SERVING,
+	}, nil
+}
+
 func getOpenAPIHandler() http.Handler {
-	// getOpenAPIHandler serves an OpenAPI UI.
-	// Adapted from https://github.com/philips/grpc-gateway-example/blob/a269bcb5931ca92be0ceae6130ac27ae89582ecc/cmd/serve.go#L63
 	err := mime.AddExtensionType(".svg", "image/svg+xml")
 	if err != nil {
 		log.Error(context.Background(), "msg", "error adding mime type", "err", err)
 	}
-
 	return http.FileServer(http.FS(openapi.ContentFS))
 }
 
-// main is the entry point of the service
-// This is where the ColdBrew framework is initialized and the service is started
 func main() {
-	// Initialize the ColdBrew framework configuration from the environment variables
 	cfg := config.GetColdBrewConfig()
 	if cfg.AppName == "" {
-		// If the app name is not set in the environment variables, use the app name from the version package
-		cfg.AppName = version.AppName
+		cfg.AppName = "backend-analytics"
 	}
-	// Set the release name to the git commit hash from the version package
 	cfg.ReleaseName = version.GitCommit
 
-	// Initialize the ColdBrew framework with the given configuration
-	// This is a good place to customise the ColdBrew framework configuration if needed
 	cb := core.New(cfg)
-	// Set the OpenAPI handler that is used by the ColdBrew framework to serve the OpenAPI UI
 	cb.SetOpenAPIHandler(getOpenAPIHandler())
-	// Register the service implementation with the ColdBrew framework
+
 	err := cb.SetService(&cbSvc{})
 	if err != nil {
-		// If there is an error registering the service implementation, panic and exit
 		panic(err)
 	}
 
-	// Start the service and wait for it to exit
-	// This is a blocking call and will not return until the service exits completely
 	log.Error(context.Background(), cb.Run())
 }

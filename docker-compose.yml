@@ -1,0 +1,89 @@
+services:
+  db:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: transport_db
+    environment:
+      POSTGRES_DB: transport_reliability
+      POSTGRES_USER: lta_user
+      POSTGRES_PASSWORD: lta_pass_2025
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lta_user -d transport_reliability"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - transport_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: transport_app
+    environment:
+      DATABASE_URL: "postgres://lta_user:lta_pass_2025@db:5432/transport_reliability?sslmode=disable"
+      ENVIRONMENT: "production"
+      LOG_LEVEL: "INFO"
+    ports:
+      - "9091:9091"
+      - "9090:9090"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9091/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - transport_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: transport_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - transport_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+    container_name: transport_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"  # Client-side URL (browser)
+      API_URL: "http://nginx:8080"                   # Server-side URL (SSR in Docker)
+    ports:
+      - "3000:3000"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - transport_network
+
+volumes:
+  postgres_data:
+
+networks:
+  transport_network:
+    driver: bridge

@@ -1,0 +1,321 @@
+syntax = "proto3";
+
+package com.bluesg.transport;
+
+option go_package = "github.com/bluesg/backend-analytics/proto;myapp";
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "google/api/httpbody.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Transport Reliability Analytics API";
+    version: "1.0";
+    description: "LTA Transport Reliability Analytics System";
+  };
+  schemes: HTTP;
+  schemes: HTTPS;
+};
+
+message CreateIncidentRequest {
+  string line = 1;
+  string station = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  int32 duration_minutes = 4;
+  string incident_type = 5;
+}
+
+message IncidentResponse {
+  string id = 1;
+  string line = 2;
+  string station = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  int32 duration_minutes = 5;
+  string incident_type = 6;
+  string line_id = 7;
+  string station_id = 8;
+  string status = 9;
+}
+
+message TopBreakdownsRequest {
+  string scope = 1;
+  int32 limit = 2;
+}
+
+message TopBreakdownItem {
+  string name = 1;
+  int32 count = 2;
+}
+
+message TopBreakdownsResponse {
+  string scope = 1;
+  repeated TopBreakdownItem items = 2;
+}
+
+message MTBFLineItem {
+  string name = 1;
+  double mtbf_minutes = 2;
+}
+
+message MTBFResponse {
+  repeated MTBFLineItem lines = 1;
+}
+
+message RecentDisruptionsRequest {
+  string line = 1;
+  string station = 2;
+  int32 limit = 3;
+}
+
+message RecentDisruptionItem {
+  string line = 1;
+  string station = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  int32 duration_minutes = 4;
+  string incident_type = 5;
+  string status = 6;
+}
+
+message RecentDisruptionsResponse {
+  repeated RecentDisruptionItem items = 1;
+}
+
+message CreateLineRequest {
+  string name = 1;
+}
+
+message LineResponse {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ListLinesResponse {
+  repeated LineResponse lines = 1;
+}
+
+message GetLineRequest {
+  string id = 1;
+}
+
+message UpdateLineRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message DeleteLineRequest {
+  string id = 1;
+}
+
+message CreateStationRequest {
+  string name = 1;
+  string line_id = 2;
+  string status = 3;
+}
+
+message StationResponse {
+  string id = 1;
+  string name = 2;
+  string line_id = 3;
+  string line_name = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ListStationsRequest {
+  string line_id = 1;
+}
+
+message ListStationsResponse {
+  repeated StationResponse stations = 1;
+}
+
+message GetStationRequest {
+  string id = 1;
+}
+
+message UpdateStationRequest {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+}
+
+message DeleteStationRequest {
+  string id = 1;
+}
+
+service TransportAnalytics {
+  rpc HealthCheck(google.protobuf.Empty) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      get: "/health"
+    };
+  }
+
+  rpc ReadyCheck(google.protobuf.Empty) returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      get: "/ready"
+    };
+  }
+
+  rpc CreateIncident(CreateIncidentRequest) returns (IncidentResponse) {
+    option (google.api.http) = {
+      post: "/incidents"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create incident"
+      description: "Submit a new backend incident"
+      tags: "incidents"
+    };
+  }
+
+  rpc GetTopBreakdowns(TopBreakdownsRequest) returns (TopBreakdownsResponse) {
+    option (google.api.http) = {
+      get: "/analytics/top_breakdowns"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Top breakdowns"
+      description: "Returns top 5 lines or stations with most breakdowns"
+      tags: "analytics"
+    };
+  }
+
+  rpc GetMTBF(google.protobuf.Empty) returns (MTBFResponse) {
+    option (google.api.http) = {
+      get: "/analytics/mean_time_between_failures"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "MTBF per line"
+      description: "Returns mean time between failures for each line"
+      tags: "analytics"
+    };
+  }
+
+  rpc GetRecentDisruptions(RecentDisruptionsRequest) returns (RecentDisruptionsResponse) {
+    option (google.api.http) = {
+      get: "/analytics/recent_disruptions"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Recent disruptions"
+      description: "Returns recent breakdowns with optional filters"
+      tags: "analytics"
+    };
+  }
+
+  rpc CreateLine(CreateLineRequest) returns (LineResponse) {
+    option (google.api.http) = {
+      post: "/lines"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create line"
+      description: "Create a new backend line"
+      tags: "lines"
+    };
+  }
+
+  rpc ListLines(google.protobuf.Empty) returns (ListLinesResponse) {
+    option (google.api.http) = {
+      get: "/lines"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List lines"
+      description: "Get all backend lines"
+      tags: "lines"
+    };
+  }
+
+  rpc GetLine(GetLineRequest) returns (LineResponse) {
+    option (google.api.http) = {
+      get: "/lines/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get line"
+      description: "Get a specific backend line by ID"
+      tags: "lines"
+    };
+  }
+
+  rpc UpdateLine(UpdateLineRequest) returns (LineResponse) {
+    option (google.api.http) = {
+      put: "/lines/{id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update line"
+      description: "Update a backend line"
+      tags: "lines"
+    };
+  }
+
+  rpc DeleteLine(DeleteLineRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/lines/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete line"
+      description: "Delete a backend line"
+      tags: "lines"
+    };
+  }
+
+  rpc CreateStation(CreateStationRequest) returns (StationResponse) {
+    option (google.api.http) = {
+      post: "/stations"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create station"
+      description: "Create a new station"
+      tags: "stations"
+    };
+  }
+
+  rpc ListStations(ListStationsRequest) returns (ListStationsResponse) {
+    option (google.api.http) = {
+      get: "/stations"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List stations"
+      description: "Get all stations with optional line filter"
+      tags: "stations"
+    };
+  }
+
+  rpc GetStation(GetStationRequest) returns (StationResponse) {
+    option (google.api.http) = {
+      get: "/stations/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get station"
+      description: "Get a specific station by ID"
+      tags: "stations"
+    };
+  }
+
+  rpc UpdateStation(UpdateStationRequest) returns (StationResponse) {
+    option (google.api.http) = {
+      put: "/stations/{id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update station"
+      description: "Update a station"
+      tags: "stations"
+    };
+  }
+
+  rpc DeleteStation(DeleteStationRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/stations/{id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete station"
+      description: "Delete a station"
+      tags: "stations"
+    };
+  }
+}
